@@ -9,7 +9,33 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const CHARLOTTE_APP_ID = "6a137759291f6ae664c3b557";
+const CHARLOTTE_API_KEY = process.env.BASE44_API_KEY || "";
+
 const router: IRouter = Router();
+
+// Helper: send message to Charlotte May (Superagent) and return full response text
+async function sendToCharlotte(userMessage: string, conversationId: string): Promise<string> {
+  const response = await fetch(
+    `https://app.base44.com/api/agents/${CHARLOTTE_APP_ID}/conversations/${conversationId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${CHARLOTTE_API_KEY}`,
+      },
+      body: JSON.stringify({ content: userMessage }),
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Charlotte API error: ${response.status} ${err}`);
+  }
+
+  const data = await response.json();
+  return data.content || data.message || JSON.stringify(data);
+}
 
 // POST /openai/conversations/:id/messages  (text chat, SSE streaming)
 router.post("/openai/conversations/:id/messages", async (req, res): Promise<void> => {
@@ -38,7 +64,40 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     content: body.data.content,
   });
 
-  // Fetch conversation history
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // --- Charlotte May route ---
+  if (assistant.provider === "charlotte") {
+    try {
+      const fullResponse = await sendToCharlotte(body.data.content, String(assistantId));
+
+      // Stream it word-by-word so the UI feels live
+      const words = fullResponse.split(" ");
+      for (const word of words) {
+        res.write(`data: ${JSON.stringify({ content: word + " " })}\n\n`);
+        await new Promise((r) => setTimeout(r, 30));
+      }
+
+      await db.insert(assistantMessages).values({
+        assistantId,
+        role: "assistant",
+        content: fullResponse,
+      });
+      await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (e: any) {
+      res.write(`data: ${JSON.stringify({ content: `Error reaching Charlotte: ${e.message}` })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    }
+    return;
+  }
+
+  // --- Standard OpenAI route ---
   const history = await db
     .select()
     .from(assistantMessages)
@@ -54,10 +113,6 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
       content: m.content,
     })),
   ];
-
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
 
   let fullResponse = "";
 
@@ -76,14 +131,11 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
     }
   }
 
-  // Save assistant message
   await db.insert(assistantMessages).values({
     assistantId,
     role: "assistant",
     content: fullResponse,
   });
-
-  // Update assistant updatedAt
   await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
@@ -128,7 +180,41 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
     content: userTranscript,
   });
 
-  // Fetch conversation history
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  res.write(`data: ${JSON.stringify({ type: "transcript", data: userTranscript, role: "user" })}\n\n`);
+
+  // --- Charlotte May voice route ---
+  if (assistant.provider === "charlotte") {
+    try {
+      const fullResponse = await sendToCharlotte(userTranscript, String(assistantId));
+
+      const words = fullResponse.split(" ");
+      for (const word of words) {
+        res.write(`data: ${JSON.stringify({ type: "transcript", data: word + " ", role: "assistant" })}\n\n`);
+        await new Promise((r) => setTimeout(r, 30));
+      }
+
+      await db.insert(assistantMessages).values({
+        assistantId,
+        role: "assistant",
+        content: fullResponse,
+      });
+      await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (e: any) {
+      res.write(`data: ${JSON.stringify({ type: "transcript", data: `Error: ${e.message}`, role: "assistant" })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    }
+    return;
+  }
+
+  // --- Standard OpenAI voice route ---
   const history = await db
     .select()
     .from(assistantMessages)
@@ -145,11 +231,6 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
     })),
   ];
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-
-  // Stream text response
   const stream = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     max_completion_tokens: 8192,
@@ -158,7 +239,6 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
   });
 
   let fullResponse = "";
-  res.write(`data: ${JSON.stringify({ type: "transcript", data: userTranscript, role: "user" })}\n\n`);
 
   for await (const chunk of stream) {
     const content = chunk.choices[0]?.delta?.content;
@@ -168,13 +248,11 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
     }
   }
 
-  // Save assistant message
   await db.insert(assistantMessages).values({
     assistantId,
     role: "assistant",
     content: fullResponse,
   });
-
   await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
