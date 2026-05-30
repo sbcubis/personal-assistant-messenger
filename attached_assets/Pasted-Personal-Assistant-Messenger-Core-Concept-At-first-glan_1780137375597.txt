@@ -1,0 +1,479 @@
+Personal Assistant Messenger
+
+Core Concept
+
+At first glance, the app looks almost identical to a modern messaging app.
+
+However, the "contacts" are not real people.
+
+Each contact is actually an AI Personal Assistant.
+
+The contact list is essentially a visual representation of assistant tabs.
+
+Instead of switching between tabs at the top of the screen, users switch assistants by opening different conversations.
+
+This makes assistant management feel far more natural and familiar.
+
+
+---
+
+First Launch Experience
+
+The user starts with only one assistant.
+
+Default Assistant
+
+Name: Assistant
+
+Friendly avatar
+
+Ready to chat immediately
+
+
+No setup wizard.
+
+No complicated onboarding.
+
+User simply opens the app and starts talking.
+
+
+---
+
+Chat List = Assistant List
+
+Unlike a normal messaging app:
+
+One assistant = one chat
+
+One chat = one assistant
+
+
+The chat screen is actually the assistant selector.
+
+Example:
+
+Assistant
+
+Travel Planner
+
+Study Coach
+
+Fitness Coach
+
+Coding Expert
+
+Executive Assistant
+
+
+Visually these look like contacts.
+
+Technically they are specialized AI workspaces.
+
+
+---
+
+Add Assistant
+
+Top-right "+" button.
+
+Pressing it creates a new assistant.
+
+The user chooses:
+
+Name
+
+Examples:
+
+Travel Planner
+
+Work Assistant
+
+Home Manager
+
+Research Assistant
+
+
+Avatar
+
+AI-generated avatar
+
+Upload image
+
+Emoji avatar
+
+
+Instructions
+
+Examples:
+
+> You are my travel expert.
+
+
+
+> You are my startup advisor.
+
+
+
+> You help manage my home renovation.
+
+
+
+Once saved:
+
+A new "contact" appears in the chat list.
+
+
+---
+
+Why This Design Works
+
+Most AI apps use:
+
+Tabs
+
+Workspaces
+
+Projects
+
+Agents
+
+
+These often become confusing.
+
+This design hides complexity.
+
+The user thinks:
+
+> "I'll message my Travel Assistant."
+
+
+
+Instead of:
+
+> "I'll switch to the Travel workspace tab."
+
+
+
+Same functionality.
+
+Much more intuitive.
+
+
+---
+
+Chat List Behaviour
+
+Each assistant card shows:
+
+Avatar
+
+Assistant name
+
+Last message
+
+Timestamp
+
+
+Exactly like a messaging app.
+
+Example:
+
+Travel Planner
+Found 5 flights to Tokyo...
+2:43 PM
+
+Executive Assistant
+Meeting agenda prepared...
+11:12 AM
+
+Study Coach
+You completed Chapter 4...
+Yesterday
+
+
+---
+
+Chat Screen
+
+Looks like a standard messaging app.
+
+Header
+
+Assistant avatar
+
+Assistant name
+
+Menu button
+
+
+
+---
+
+Messages
+
+User messages on right.
+
+Assistant messages on left.
+
+Supports:
+
+Text
+
+Voice
+
+Images
+
+Documents
+
+Tasks
+
+Lists
+
+
+
+---
+
+Assistant Menu
+
+Top-right menu.
+
+Options:
+
+Rename Assistant
+
+Change Avatar
+
+Duplicate Assistant
+
+Clear Conversation
+
+Delete Assistant
+
+
+
+---
+
+Delete Assistant Logic
+
+Deleting an assistant removes:
+
+Conversation history
+
+Memory
+
+Attached files
+
+Tasks
+
+
+Confirmation dialog:
+
+Delete Assistant?
+
+This action cannot be undone.
+
+Buttons:
+
+Cancel
+
+Delete
+
+
+
+---
+
+Clear Conversation Logic
+
+Keeps assistant.
+
+Deletes only messages.
+
+Result:
+
+Assistant remains in list.
+
+Memory settings remain.
+
+Conversation starts fresh.
+
+
+---
+
+Assistant Memory
+
+Each assistant remembers independently.
+
+Example:
+
+Travel Assistant remembers:
+
+Preferred airlines
+
+Passport details
+
+Travel history
+
+
+Fitness Assistant remembers:
+
+Workout plans
+
+Goals
+
+Progress
+
+
+Coding Assistant remembers:
+
+Projects
+
+Programming preferences
+
+Previous discussions
+
+
+Each contact effectively becomes its own persistent workspace.
+
+
+---
+
+Voice Recording Logic
+
+Tap
+
+Tap mic.
+
+Recording begins.
+
+Tap again.
+
+Recording stops.
+
+Audio automatically submits.
+
+Flow:
+
+Tap
+↓
+Record
+↓
+Tap
+↓
+Stop
+↓
+Send
+
+
+---
+
+Hold
+
+Hold mic.
+
+Recording begins.
+
+Release.
+
+Recording stops and submits.
+
+Flow:
+
+Hold
+↓
+Record
+↓
+Release
+↓
+Send
+
+
+---
+
+Cancel
+
+While recording:
+
+Swipe left.
+
+Recording deleted.
+
+Nothing submitted.
+
+
+---
+
+Swipe Actions
+
+Swipe Right
+
+Pin Assistant
+
+
+
+---
+
+Swipe Left
+
+Delete Assistant
+
+Archive Assistant
+
+
+
+---
+
+Archive Logic
+
+Assistant disappears from main list.
+
+Accessible through Archived section.
+
+No data lost.
+
+
+---
+
+Search
+
+Searches across:
+
+Assistant names
+
+Messages
+
+Voice transcripts
+
+Tasks
+
+Files
+
+
+
+---
+
+The Mental Model
+
+The app is not a messaging app with assistants.
+
+The app is a collection of AI assistants disguised as contacts.
+
+Every contact is actually:
+
+A workspace
+
+A memory container
+
+A specialized AI
+
+A long-term project area
+
+
+The user never needs to think about agents, projects, tabs, workspaces, contexts, or sessions.
+
+They simply think:
+
+> "I'll message my Travel Assistant."
+
+
+
+which is exactly the experience the interface is designed to create.

@@ -1,0 +1,516 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Personal Assistant Messenger API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: assistants
+    description: AI Assistant management
+  - name: messages
+    description: Chat messages
+  - name: openai
+    description: OpenAI AI chat and audio operations
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /assistants:
+    get:
+      operationId: listAssistants
+      tags: [assistants]
+      summary: List all assistants
+      responses:
+        "200":
+          description: List of assistants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assistant"
+    post:
+      operationId: createAssistant
+      tags: [assistants]
+      summary: Create a new assistant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantInput"
+      responses:
+        "201":
+          description: Created assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+
+  /assistants/{id}:
+    get:
+      operationId: getAssistant
+      tags: [assistants]
+      summary: Get an assistant by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateAssistant
+      tags: [assistants]
+      summary: Update an assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantUpdate"
+      responses:
+        "200":
+          description: Updated assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteAssistant
+      tags: [assistants]
+      summary: Delete an assistant and all its messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /assistants/{id}/pin:
+    patch:
+      operationId: toggleAssistantPin
+      tags: [assistants]
+      summary: Toggle pin state of an assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /assistants/{id}/archive:
+    patch:
+      operationId: toggleAssistantArchive
+      tags: [assistants]
+      summary: Toggle archive state of an assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /assistants/{id}/duplicate:
+    post:
+      operationId: duplicateAssistant
+      tags: [assistants]
+      summary: Duplicate an assistant (copies name, avatar, instructions — not messages)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Duplicated assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assistant"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /assistants/{id}/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages for an assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    delete:
+      operationId: clearMessages
+      tags: [messages]
+      summary: Clear all messages for an assistant (keeps the assistant)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cleared
+
+  /assistants/{id}/generate-avatar:
+    post:
+      operationId: generateAssistantAvatar
+      tags: [assistants]
+      summary: Generate an AI avatar image for an assistant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvatarGenerateInput"
+      responses:
+        "200":
+          description: Generated avatar data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvatarOutput"
+
+  /assistants/search:
+    get:
+      operationId: searchAssistants
+      tags: [assistants]
+      summary: Search across assistants and messages
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResults"
+
+  /openai/conversations/{id}/messages:
+    post:
+      operationId: sendOpenaiMessage
+      tags: [openai]
+      summary: Send a text message and receive a streaming text response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiMessageInput"
+      responses:
+        "200":
+          description: SSE stream of assistant text chunks
+          content:
+            text/event-stream: {}
+
+  /openai/conversations/{id}/voice-messages:
+    post:
+      operationId: sendOpenaiVoiceMessage
+      tags: [openai]
+      summary: Send audio and receive a streaming voice response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiVoiceMessageInput"
+      responses:
+        "200":
+          description: SSE stream of transcript and audio chunks
+          content:
+            text/event-stream: {}
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Assistant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        instructions:
+          type: ["string", "null"]
+        avatarEmoji:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        isPinned:
+          type: boolean
+        isArchived:
+          type: boolean
+        lastMessageAt:
+          type: ["string", "null"]
+          format: date-time
+        lastMessagePreview:
+          type: ["string", "null"]
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - isPinned
+        - isArchived
+        - messageCount
+        - createdAt
+        - updatedAt
+
+    AssistantInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        instructions:
+          type: string
+        avatarEmoji:
+          type: string
+        avatarUrl:
+          type: string
+      required:
+        - name
+
+    AssistantUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        instructions:
+          type: string
+        avatarEmoji:
+          type: string
+        avatarUrl:
+          type: string
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        assistantId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assistantId
+        - role
+        - content
+        - createdAt
+
+    AvatarGenerateInput:
+      type: object
+      properties:
+        prompt:
+          type: string
+      required:
+        - prompt
+
+    AvatarOutput:
+      type: object
+      properties:
+        b64_json:
+          type: string
+      required:
+        - b64_json
+
+    SearchResults:
+      type: object
+      properties:
+        assistants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Assistant"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchMessage"
+      required:
+        - assistants
+        - messages
+
+    SearchMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        assistantId:
+          type: integer
+        assistantName:
+          type: string
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assistantId
+        - assistantName
+        - role
+        - content
+        - createdAt
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    OpenaiMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    OpenaiVoiceMessageInput:
+      type: object
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded audio data
+      required:
+        - audio
