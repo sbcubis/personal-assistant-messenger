@@ -11,6 +11,7 @@ export const assistants = pgTable("assistants", {
   isPinned: boolean("is_pinned").notNull().default(false),
   isArchived: boolean("is_archived").notNull().default(false),
   provider: text("provider").notNull().default("openai"), // "openai" | "charlotte"
+  charlotteConversationId: text("charlotte_conversation_id"), // persists thread ID for Charlotte contacts
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
@@ -22,3 +23,4 @@ export const insertAssistantSchema = createInsertSchema(assistants).omit({
 });
 export type InsertAssistant = z.infer<typeof insertAssistantSchema>;
 export type Assistant = typeof assistants.$inferSelect;
+
