@@ -9,32 +9,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const CHARLOTTE_APP_ID = "6a137759291f6ae664c3b557";
-const CHARLOTTE_API_KEY = process.env.BASE44_API_KEY || "";
+const CHARLOTTE_PROXY_URL = "https://superagent-64c3b557.base44.app/functions/chatProxy";
 
 const router: IRouter = Router();
 
-// Helper: send message to Charlotte May (Superagent) and return full response text
-async function sendToCharlotte(userMessage: string, conversationId: string): Promise<string> {
-  const response = await fetch(
-    `https://app.base44.com/api/agents/${CHARLOTTE_APP_ID}/conversations/${conversationId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${CHARLOTTE_API_KEY}`,
-      },
-      body: JSON.stringify({ content: userMessage }),
-    }
-  );
-
+// Helper: send message to Charlotte via proxy, returns { reply, conversation_id }
+async function sendToCharlotte(message: string, conversationId?: string): Promise<{ reply: string; conversation_id: string }> {
+  const response = await fetch(CHARLOTTE_PROXY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, conversation_id: conversationId }),
+  });
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Charlotte API error: ${response.status} ${err}`);
+    throw new Error(`Charlotte proxy error: ${response.status} ${err}`);
   }
-
-  const data = await response.json();
-  return data.content || data.message || JSON.stringify(data);
+  return response.json();
 }
 
 // POST /openai/conversations/:id/messages  (text chat, SSE streaming)
@@ -71,21 +61,29 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   // --- Charlotte May route ---
   if (assistant.provider === "charlotte") {
     try {
-      const fullResponse = await sendToCharlotte(body.data.content, String(assistantId));
+      // Use stored conversation_id from assistant metadata if available
+      const { reply, conversation_id } = await sendToCharlotte(
+        body.data.content,
+        (assistant as any).charlotteConversationId ?? undefined
+      );
 
-      // Stream it word-by-word so the UI feels live
-      const words = fullResponse.split(" ");
+      // Persist conversation_id back to assistant row so thread stays continuous
+      await db.update(assistants)
+        .set({ updatedAt: new Date(), ...(!(assistant as any).charlotteConversationId ? { charlotteConversationId: conversation_id } as any : {}) })
+        .where(eq(assistants.id, assistantId));
+
+      // Stream word-by-word so UI feels live
+      const words = reply.split(" ");
       for (const word of words) {
         res.write(`data: ${JSON.stringify({ content: word + " " })}\n\n`);
-        await new Promise((r) => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 25));
       }
 
       await db.insert(assistantMessages).values({
         assistantId,
         role: "assistant",
-        content: fullResponse,
+        content: reply,
       });
-      await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
@@ -165,7 +163,7 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
   const audioBuffer = Buffer.from(body.data.audio, "base64");
   const { buffer: compatBuffer, format } = await ensureCompatibleFormat(audioBuffer);
 
-  // Transcribe user audio
+  // Transcribe with Whisper
   const transcription = await openai.audio.transcriptions.create({
     model: "gpt-4o-mini-transcribe",
     file: await toFile(compatBuffer, `audio.${format}`, { type: `audio/${format}` }),
@@ -173,7 +171,6 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
   });
   const userTranscript = transcription.text;
 
-  // Save user message
   await db.insert(assistantMessages).values({
     assistantId,
     role: "user",
@@ -189,18 +186,25 @@ router.post("/openai/conversations/:id/voice-messages", async (req, res): Promis
   // --- Charlotte May voice route ---
   if (assistant.provider === "charlotte") {
     try {
-      const fullResponse = await sendToCharlotte(userTranscript, String(assistantId));
+      const { reply, conversation_id } = await sendToCharlotte(
+        userTranscript,
+        (assistant as any).charlotteConversationId ?? undefined
+      );
 
-      const words = fullResponse.split(" ");
+      await db.update(assistants)
+        .set({ updatedAt: new Date(), ...(!(assistant as any).charlotteConversationId ? { charlotteConversationId: conversation_id } as any : {}) })
+        .where(eq(assistants.id, assistantId));
+
+      const words = reply.split(" ");
       for (const word of words) {
         res.write(`data: ${JSON.stringify({ type: "transcript", data: word + " ", role: "assistant" })}\n\n`);
-        await new Promise((r) => setTimeout(r, 30));
+        await new Promise((r) => setTimeout(r, 25));
       }
 
       await db.insert(assistantMessages).values({
         assistantId,
         role: "assistant",
-        content: fullResponse,
+        content: reply,
       });
       await db.update(assistants).set({ updatedAt: new Date() }).where(eq(assistants.id, assistantId));
 
