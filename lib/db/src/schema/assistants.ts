@@ -10,6 +10,7 @@ export const assistants = pgTable("assistants", {
   avatarUrl: text("avatar_url"),
   isPinned: boolean("is_pinned").notNull().default(false),
   isArchived: boolean("is_archived").notNull().default(false),
+  provider: text("provider").notNull().default("openai"), // "openai" | "charlotte"
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
